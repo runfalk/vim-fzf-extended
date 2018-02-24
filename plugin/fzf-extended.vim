@@ -226,6 +226,9 @@ endfunction
 function! s:FzfFilesIngore(ignore_list)
     let source_cmd = ["find", ".", "-not", "("]
     for ignore in a:ignore_list
+        if source_cmd[-1] != "("
+            call add(source_cmd, "-o")
+        endif
         call extend(source_cmd, ["-name", ignore, "-prune"])
     endfor
     call extend(source_cmd, [")", "-type", "f", "-print"])
@@ -234,8 +237,6 @@ function! s:FzfFilesIngore(ignore_list)
     \   "source": s:ShellEscape(source_cmd) . " 2> /dev/null | cut -c3-",
     \   "options": ["--multi"],
     \})
-    echo source_cmd
-    echo s:ShellEscape(source_cmd) . " 2> /dev/null"
     call fzf#run(fzf_args)
 endfunction
 
