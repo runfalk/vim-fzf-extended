@@ -44,7 +44,6 @@ let g:fzf_colors = {
 \}
 
 
-
 function! s:AnsiColor(string, highlight_name)
     let highlight_id = hlID(a:highlight_name)
     if highlight_id == 0
@@ -138,10 +137,105 @@ function! s:ProcessCtagsVimScript(ctags)
 endfunction
 let s:language_processors.vim = function("s:ProcessCtagsVimScript")
 
+let s:c_builtins = [
+\   "void",
+\   "bool",
+\   "short",
+\   "short int",
+\   "signed short",
+\   "signed short int",
+\   "unsigned short",
+\   "unsigned short int",
+\   "int",
+\   "signed",
+\   "signed int",
+\   "unsigned",
+\   "unsigned int",
+\   "long",
+\   "long int",
+\   "signed long",
+\   "signed long int",
+\   "unsigned long",
+\   "unsigned long int",
+\   "long long",
+\   "long long int",
+\   "signed long long",
+\   "signed long long int",
+\   "unsigned long long",
+\   "unsigned long long int",
+\   "unsigned long long int",
+\   "float",
+\   "double",
+\   "long double",
+\]
+
+function! s:ProcessCtagsCpp(ctags)
+    let output = []
+    for ctag in a:ctags
+        let belongs_to = get(split(get(ctag.extra, 0, ""), ":"), 1, "")
+        let return_type = get(ctag.extra, 1, "")[17:] " Strip typeref:typename:
+
+        let prefix = ""
+        let name = ctag.name
+        if ctag.type == "f"
+            let prefix = return_type
+            if prefix == "" && belongs_to == name
+                let prefix = s:AnsiColor("(constructor)", "cCommentL")
+            elseif index(s:c_builtins, return_type) != -1
+                let prefix = s:AnsiColor(return_type, "cType")
+            endif
+
+            if belongs_to != ""
+                let generic_match = matchstr(ctag.line, belongs_to . "<[^>]>")
+                if generic_match != ""
+                    let belongs_to = generic_match
+                endif
+                let name = belongs_to . "::" . s:AnsiColor(name, "cCustomFunc")
+            endif
+        elseif ctag.type == "c"
+            let prefix = s:AnsiColor("class", "cppStructure")
+            if belongs_to != ""
+                let generic_match = matchstr(ctag.line, belongs_to . "<[^>]>")
+                if generic_match != ""
+                    let name = generic_match
+                endif
+            endif
+        elseif ctag.type == "g"
+            if ctag.line =~? "enum\\s\\+class"
+                let prefix = s:AnsiColor("enum class", "cStructure")
+            else
+                let prefix = s:AnsiColor("enum", "cStructure")
+            endif
+        elseif ctag.type == "s"
+            let prefix = s:AnsiColor("struct", "cStructure")
+        else
+            continue
+        endif
+        call add(output, join([prefix, name, ctag.line], "\t"))
+    endfor
+    return output
+endfunction
+let s:language_processors.cpp = function("s:ProcessCtagsCpp")
+
+
+function! s:ProcessCtagsDefault(ctags)
+    let output = []
+    for ctag in a:ctags
+        if index(["f", "m", "c"], ctag.type) != -1
+            call add(output, join([
+            \   "",
+            \   substitute(ctag.line, "^\\s*\\(.\\{-}\\)\\s*$", "\\1", ""),
+            \   ctag.line,
+            \], "\t"))
+        endif
+    endfor
+    return output
+endfunction
+
 
 function! s:ProcessCtags(ctags, filetype)
     if !has_key(s:language_processors, a:filetype)
-        return []
+        return s:ProcessCtagsDefault(a:ctags)
     endif
     return s:language_processors[a:filetype](a:ctags)
 endfunction
@@ -160,7 +254,12 @@ function! s:BufferGetCtags()
     for ctag in systemlist(cmd)
         let [name, _, regex, type; extra] = split(ctag, "\t")
         let line = regex[2:-5]
-        call add(output, {"name": name, "type": type, "line": line})
+        call add(output, {
+        \   "name": name,
+        \   "type": type,
+        \   "line": line,
+        \   "extra": extra,
+        \})
     endfor
     return output
 endfunction
