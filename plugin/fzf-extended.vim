@@ -44,6 +44,11 @@ let g:fzf_colors = {
 \}
 
 
+let s:filetype_ctag_overrides = {
+\   "cpp": "C++",
+\}
+
+
 function! s:AnsiColor(string, highlight_name)
     let highlight_id = hlID(a:highlight_name)
     if highlight_id == 0
@@ -65,6 +70,13 @@ function! s:AnsiColor(string, highlight_name)
     endif
 
     return join([prefix, a:string, "\033[0m"], "")
+endfunction
+
+
+function! s:TempStoreBuffer()
+    let filename = tempname()
+    execute "%w !cat - > " . filename
+    return filename
 endfunction
 
 
@@ -172,8 +184,8 @@ let s:c_builtins = [
 function! s:ProcessCtagsCpp(ctags)
     let output = []
     for ctag in a:ctags
-        let belongs_to = get(split(get(ctag.extra, 0, ""), ":"), 1, "")
-        let return_type = get(ctag.extra, 1, "")[17:] " Strip typeref:typename:
+        let belongs_to = get(ctag.metadata, "class", "")
+        let return_type = get(ctag.metadata, "typeref", "")[9:] " Strip typename:
 
         let prefix = ""
         let name = ctag.name
@@ -186,22 +198,24 @@ function! s:ProcessCtagsCpp(ctags)
             endif
 
             if belongs_to != ""
-                let generic_match = matchstr(ctag.line, belongs_to . "<[^>]>")
+                let generic_match = matchstr(ctag.content, belongs_to . "<[^>]>")
                 if generic_match != ""
                     let belongs_to = generic_match
                 endif
                 let name = belongs_to . "::" . s:AnsiColor(name, "cCustomFunc")
             endif
+
+            let name = name . ctag.signature
         elseif ctag.type == "c"
             let prefix = s:AnsiColor("class", "cppStructure")
             if belongs_to != ""
-                let generic_match = matchstr(ctag.line, belongs_to . "<[^>]>")
+                let generic_match = matchstr(ctag.content, belongs_to . "<[^>]>")
                 if generic_match != ""
                     let name = generic_match
                 endif
             endif
         elseif ctag.type == "g"
-            if ctag.line =~? "enum\\s\\+class"
+            if ctag.content =~? "enum\\s\\+class"
                 let prefix = s:AnsiColor("enum class", "cStructure")
             else
                 let prefix = s:AnsiColor("enum", "cStructure")
@@ -224,7 +238,7 @@ function! s:ProcessCtagsDefault(ctags)
         if index(["f", "m", "c"], ctag.type) != -1
             call add(output, join([
             \   "",
-            \   substitute(ctag.line, "^\\s*\\(.\\{-}\\)\\s*$", "\\1", ""),
+            \   substitute(ctag.content, "^\\s*\\(.\\{-}\\)\\s*$", "\\1", ""),
             \   ctag.line,
             \], "\t"))
         endif
@@ -242,23 +256,45 @@ endfunction
 
 
 function! s:BufferGetCtags()
-    let current_file = expand("%")
-
-    " If the current buffer doesn't have a filename ctags can't be run
-    if current_file == ""
+    " If the current buffer doesn't have a filetype ctags can't be run
+    if &filetype == ""
         return []
     endif
 
     let output = []
-    let cmd = s:ShellEscape(["ctags", "--sort=no", "-f", "-", current_file])
+    let ctag_language = &filetype
+    if has_key(s:filetype_ctag_overrides, &filetype)
+        let ctag_language = s:filetype_ctag_overrides[&filetype]
+    endif
+    let cmd = s:ShellEscape([
+    \   "ctags",
+    \   "--excmd=pattern",
+    \   "--fields=+aneS",
+    \   "--language-force=" . ctag_language,
+    \   "--sort=no",
+    \   "-f", "-",
+    \   s:TempStoreBuffer(),
+    \])
     for ctag in systemlist(cmd)
         let [name, _, regex, type; extra] = split(ctag, "\t")
-        let line = regex[2:-5]
+
+        let metadata = {}
+        for ext in extra
+            let [key; other] = split(ext, ":")
+            let value = join(other, ":")
+            let metadata[key] = value
+        endfor
+
+        let content = regex[2:-5]
         call add(output, {
+        \   "access": get(metadata, "access", ""),
+        \   "content": content,
+        \   "line": metadata.line,
+        \   "line_end": get(metadata, "end", metadata.line),
         \   "name": name,
+        \   "signature": get(metadata, "signature", ""),
         \   "type": type,
-        \   "line": line,
-        \   "extra": extra,
+        \   "metadata": metadata,
         \})
     endfor
     return output
@@ -267,7 +303,7 @@ endfunction
 
 function! s:GotoDefinition(selection)
     let [_, _, line] = split(a:selection, "\t")
-    execute "/\\V\\^" . line . "\\$/"
+    execute ":" . line
     normal! zz
 endfunction
 
