@@ -61,12 +61,22 @@ function! s:AnsiColor(string, highlight_name)
     let syn_id = synIDtrans(highlight_id)
     let fgcolor = synIDattr(syn_id, "fg")
     let bgcolor = synIDattr(syn_id, "bg")
+    let bold = synIDattr(syn_id, "bold") == "1"
+    let underline = synIDattr(syn_id, "underline") == "1"
+    let undercurl = synIDattr(syn_id, "undercurl") == "1"
 
     let prefix = ""
     if fgcolor != ""
-        let prefix = "\033[38;5;" . fgcolor . "m"
-    elseif bgcolor != ""
-        let prefix = "\033[48;5;" . bgcolor . "m"
+        let prefix = prefix . "\033[38;5;" . fgcolor . "m"
+    endif
+    if bgcolor != ""
+        let prefix = prefix . "\033[48;5;" . bgcolor . "m"
+    endif
+    if bold
+        let prefix = prefix . "\033[1m"
+    endif
+    if underline || undercurl
+        let prefix = prefix . "\033[4m"
     endif
 
     return join([prefix, a:string, "\033[0m"], "")
