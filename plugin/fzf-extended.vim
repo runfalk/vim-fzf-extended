@@ -75,7 +75,7 @@ endfunction
 
 function! s:TempStoreBuffer()
     let filename = tempname()
-    execute "%w !cat - > " . filename
+    execute "silent %w !cat - > " . filename
     return filename
 endfunction
 
@@ -101,6 +101,7 @@ endfunction
 
 " Hold functions that format definition choices
 let s:language_processors = {}
+
 
 function! s:ProcessCtagsPython(ctags)
     let output = []
