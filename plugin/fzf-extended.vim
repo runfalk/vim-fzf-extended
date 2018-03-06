@@ -369,8 +369,9 @@ function! s:FzfBuffers()
 endfunction
 
 
-function! s:FzfFilesIngore(ignore_list)
-    let source_cmd = ["find", ".", "-not", "("]
+function! s:FzfFilesIngore(ignore_list, ...)
+    let path = get(a:000, 0, ".")
+    let source_cmd = ["find", path, "-not", "("]
     for ignore in a:ignore_list
         if source_cmd[-1] != "("
             call add(source_cmd, "-o")
@@ -379,8 +380,13 @@ function! s:FzfFilesIngore(ignore_list)
     endfor
     call extend(source_cmd, [")", "-type", "f", "-print"])
 
+    let fzf_source = printf(
+    \    "%s 2> /dev/null | cut -c%d-",
+    \    s:ShellEscape(source_cmd),
+    \    len(path) + 2,
+    \)
     let fzf_args = fzf#wrap({
-    \   "source": s:ShellEscape(source_cmd) . " 2> /dev/null | cut -c3-",
+    \   "source": fzf_source,
     \   "options": ["--multi"],
     \})
     call fzf#run(fzf_args)
@@ -395,4 +401,4 @@ else
 endif
 
 command! FZFBuffers call s:FzfBuffers()
-command! FZFFiles call s:FzfFilesIngore(g:fzfe_ignore)
+command! -nargs=? -complete=dir FZFFiles call s:FzfFilesIngore(g:fzfe_ignore, <f-args>)
