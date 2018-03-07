@@ -49,7 +49,7 @@ let s:filetype_ctag_overrides = {
 \}
 
 
-function! s:AnsiColor(string, highlight_name)
+function! s:ansi_color(string, highlight_name)
     let highlight_id = hlID(a:highlight_name)
     if highlight_id == 0
         return a:string
@@ -82,14 +82,14 @@ function! s:AnsiColor(string, highlight_name)
 endfunction
 
 
-function! s:TempStoreBuffer()
+function! s:temp_save_buffer()
     let filename = tempname()
     execute "silent %w !cat - > " . filename
     return filename
 endfunction
 
 
-function! s:LeftPad(string, length, pad)
+function! s:left_pad(string, length, pad)
     let output = a:string
     while len(output) < a:length
         let output = a:pad . output
@@ -98,7 +98,7 @@ function! s:LeftPad(string, length, pad)
 endfunction
 
 
-function! s:ShellEscape(args)
+function! s:shell_escape(args)
     return join(map(a:args, {k, v -> shellescape(v)}), " ")
 endfunction
 
@@ -107,35 +107,35 @@ endfunction
 let s:language_processors = {}
 
 
-function! s:ProcessCtagsPython(ctags)
+function! s:process_ctags_python(ctags)
     let output = []
     for ctag in a:ctags
         let prefix = ""
         if ctag.type == "c"
-            let prefix = s:AnsiColor("class", "pythonStatement")
+            let prefix = s:ansi_color("class", "pythonStatement")
         elseif ctag.type == "m"
-            let prefix = "    " . s:AnsiColor("def", "pythonStatement")
+            let prefix = "    " . s:ansi_color("def", "pythonStatement")
         elseif ctag.type == "f"
-            let prefix = s:AnsiColor("def", "pythonStatement")
+            let prefix = s:ansi_color("def", "pythonStatement")
         else
             continue
         endif
-        let colored_name = s:AnsiColor(ctag.name, "pythonFunction")
+        let colored_name = s:ansi_color(ctag.name, "pythonFunction")
         call add(output, join([prefix, colored_name, ctag.line], "\t"))
     endfor
     return output
 endfunction
-let s:language_processors.python = function("s:ProcessCtagsPython")
+let s:language_processors.python = function("s:process_ctags_python")
 
 
-function! s:ProcessCtagsVimScript(ctags)
+function! s:process_ctags_vim(ctags)
     let output = []
     for ctag in a:ctags
         let prefix = ""
         if ctag.type == "f"
-            let prefix = s:AnsiColor("function", "vimCommand")
+            let prefix = s:ansi_color("function", "vimCommand")
         elseif ctag.type == "c"
-            let prefix = s:AnsiColor("command", "vimCommand")
+            let prefix = s:ansi_color("command", "vimCommand")
         else
             continue
         endif
@@ -144,15 +144,16 @@ function! s:ProcessCtagsVimScript(ctags)
         let name_prefix = ""
         let function_name = ctag.name
         if function_name =~ "^[^:]:"
-            let name_prefix = s:AnsiColor(function_name[0], "vimCommand")
+            let name_prefix = s:ansi_color(function_name[0], "vimCommand")
             let function_name = function_name[1:]
         endif
-        let colored_name = name_prefix . s:AnsiColor(function_name, "vimFunction")
+        let colored_name = name_prefix . s:ansi_color(function_name, "vimFunction")
         call add(output, join([prefix, colored_name, ctag.line], "\t"))
     endfor
     return output
 endfunction
-let s:language_processors.vim = function("s:ProcessCtagsVimScript")
+let s:language_processors.vim = function("s:process_ctags_vim")
+
 
 let s:c_builtins = [
 \   "void",
@@ -186,7 +187,7 @@ let s:c_builtins = [
 \   "long double",
 \]
 
-function! s:ProcessCtagsCpp(ctags)
+function! s:process_ctags_cpp(ctags)
     let output = []
     for ctag in a:ctags
         let belongs_to = get(ctag.metadata, "class", "")
@@ -197,9 +198,9 @@ function! s:ProcessCtagsCpp(ctags)
         if ctag.type == "f"
             let prefix = return_type
             if prefix == "" && belongs_to == name
-                let prefix = s:AnsiColor("(constructor)", "cCommentL")
+                let prefix = s:ansi_color("(constructor)", "cCommentL")
             elseif index(s:c_builtins, return_type) != -1
-                let prefix = s:AnsiColor(return_type, "cType")
+                let prefix = s:ansi_color(return_type, "cType")
             endif
 
             if belongs_to != ""
@@ -207,12 +208,12 @@ function! s:ProcessCtagsCpp(ctags)
                 if generic_match != ""
                     let belongs_to = generic_match
                 endif
-                let name = belongs_to . "::" . s:AnsiColor(name, "cCustomFunc")
+                let name = belongs_to . "::" . s:ansi_color(name, "cCustomFunc")
             endif
 
             let name = name . ctag.signature
         elseif ctag.type == "c"
-            let prefix = s:AnsiColor("class", "cppStructure")
+            let prefix = s:ansi_color("class", "cppStructure")
             if belongs_to != ""
                 let generic_match = matchstr(ctag.content, belongs_to . "<[^>]>")
                 if generic_match != ""
@@ -221,12 +222,12 @@ function! s:ProcessCtagsCpp(ctags)
             endif
         elseif ctag.type == "g"
             if ctag.content =~? "enum\\s\\+class"
-                let prefix = s:AnsiColor("enum class", "cStructure")
+                let prefix = s:ansi_color("enum class", "cStructure")
             else
-                let prefix = s:AnsiColor("enum", "cStructure")
+                let prefix = s:ansi_color("enum", "cStructure")
             endif
         elseif ctag.type == "s"
-            let prefix = s:AnsiColor("struct", "cStructure")
+            let prefix = s:ansi_color("struct", "cStructure")
         else
             continue
         endif
@@ -234,10 +235,10 @@ function! s:ProcessCtagsCpp(ctags)
     endfor
     return output
 endfunction
-let s:language_processors.cpp = function("s:ProcessCtagsCpp")
+let s:language_processors.cpp = function("s:process_ctags_cpp")
 
 
-function! s:ProcessCtagsDefault(ctags)
+function! s:process_ctags_default(ctags)
     let output = []
     for ctag in a:ctags
         if index(["f", "m", "c"], ctag.type) != -1
@@ -252,15 +253,15 @@ function! s:ProcessCtagsDefault(ctags)
 endfunction
 
 
-function! s:ProcessCtags(ctags, filetype)
+function! s:process_ctags(ctags, filetype)
     if !has_key(s:language_processors, a:filetype)
-        return s:ProcessCtagsDefault(a:ctags)
+        return s:process_ctags_default(a:ctags)
     endif
     return s:language_processors[a:filetype](a:ctags)
 endfunction
 
 
-function! s:BufferGetCtags()
+function! fzfe#buffer_ctags()
     " If the current buffer doesn't have a filetype ctags can't be run
     if &filetype == ""
         return []
@@ -271,15 +272,18 @@ function! s:BufferGetCtags()
     if has_key(s:filetype_ctag_overrides, &filetype)
         let ctag_language = s:filetype_ctag_overrides[&filetype]
     endif
-    let cmd = s:ShellEscape([
+
+    let temp_file = s:temp_save_buffer()
+    let cmd = s:shell_escape([
     \   "ctags",
     \   "--excmd=pattern",
     \   "--fields=+aneS",
     \   "--language-force=" . ctag_language,
     \   "--sort=no",
     \   "-f", "-",
-    \   s:TempStoreBuffer(),
+    \   temp_file,
     \])
+
     for ctag in systemlist(cmd)
         let [name, _, regex, type; extra] = split(ctag, "\t")
 
@@ -302,24 +306,34 @@ function! s:BufferGetCtags()
         \   "metadata": metadata,
         \})
     endfor
+
+    " Remove temp file to avoid cluttering
+    call delete(temp_file)
+
     return output
 endfunction
 
 
-function! s:GotoDefinition(selection)
-    let [_, _, line] = split(a:selection, "\t")
+function! fzfe#goto_line(line)
     execute ":" . line
     normal! zz
 endfunction
 
 
-function! s:GotoBuffer(selection)
-    let [buffer_id, buffer_name] = split(a:selection, "\t")
-    execute "buffer " . buffer_id
+function! fzfe#open_buffer(buffer_id, method)
+    if method == "replace"
+        execute "buffer " . a:buffer_id
+    elseif method == "split"
+        execute "sbuffer " . a:buffer_id
+    elseif method == "vsplit"
+        execute "vert sbuffer " . a:buffer_id
+    else
+        echoerr printf("Invalid method '%s'", method)
+    endif
 endfunction
 
 
-function! s:FzfDefinitions()
+function! fzfe#fzf_definitions()
     let fzf_opts = [
     \   "--with-nth=1,2",
     \   "--nth=2",
@@ -329,17 +343,22 @@ function! s:FzfDefinitions()
     \   "--delimiter=\t",
     \   "--ansi",
     \]
-    let fzf_source = s:ProcessCtags(s:BufferGetCtags(), &filetype)
+    let fzf_source = s:process_ctags(fzfe#buffer_ctags(), &filetype)
     let fzf_args = fzf#wrap({
     \   "source": fzf_source,
     \   "options": fzf_opts,
-    \   "sink": function("s:GotoDefinition"),
+    \   "sink": function("s:fzf_definitions_cb"),
     \})
     call fzf#run(fzf_args)
 endfunction
 
+function! s:fzf_definitions_cb(selection)
+    let [_, _, line] = split(a:selection, "\t")
+    fzfe#goto_line(line)
+endfunction
 
-function! s:FzfBuffers()
+
+function! fzfe#fzf_buffers()
     " Get list of buffers
     let fzf_source = []
     let buffer_max_id = bufnr("$")
@@ -348,8 +367,8 @@ function! s:FzfBuffers()
         if buffer_name == ""
             continue
         endif
-        let padded_number = s:LeftPad(buffer_id, len(buffer_max_id), " ")
-        let colored_number = s:AnsiColor(padded_number, "Comment")
+        let padded_number = s:left_pad(buffer_id, len(buffer_max_id), " ")
+        let colored_number = s:ansi_color(padded_number, "Comment")
         call add(fzf_source, join([colored_number, buffer_name], "\t"))
     endfor
 
@@ -357,15 +376,22 @@ function! s:FzfBuffers()
     let fzf_args = fzf#wrap({
     \   "source": fzf_source,
     \   "options": fzf_opts,
-    \   "sink": function("s:GotoBuffer")
+    \   "sink": function("s:fzf_buffers_cb")
     \})
     call fzf#run(fzf_args)
 endfunction
 
+function! s:fzf_buffers_cb(selection)
+    let [buffer_id, buffer_name] = split(a:selection, "\t")
+    fzfe#open_buffer(buffer_id, "replace")
+endfunction
 
-function! s:FzfFilesIngore(ignore_list, ...)
+
+function! fzfe#fzf_files_ignore(ignore_list, ...)
     let path = simplify(fnamemodify(get(a:000, 0, "."), ":p"))
-    let source_cmd = ["find", path, "-not", "("]
+    let simplified_path = fnamemodify(path, ":~")
+
+    let source_cmd = ["find", ".", "-not", "("]
     for ignore in a:ignore_list
         if source_cmd[-1] != "("
             call add(source_cmd, "-o")
@@ -375,13 +401,13 @@ function! s:FzfFilesIngore(ignore_list, ...)
     call extend(source_cmd, [")", "-type", "f", "-print"])
 
     let fzf_source = printf(
-    \    "%s 2> /dev/null | cut -c%d-",
-    \    s:ShellEscape(source_cmd),
-    \    len(path) + 2,
+    \    "%s 2> /dev/null | cut -c3-",
+    \    s:shell_escape(source_cmd),
     \)
     let fzf_args = fzf#wrap({
     \   "source": fzf_source,
-    \   "options": ["--multi", "--prompt=" . fnamemodify(path, ":~")],
+    \   "dir": path,
+    \   "options": ["--multi", "--prompt=" . simplified_path],
     \})
     call fzf#run(fzf_args)
 endfunction
@@ -389,10 +415,11 @@ endfunction
 
 " We need Ctags to provide definition search
 if executable("ctags")
-    command! FZFDefinitions call s:FzfDefinitions()
+    command! FZFDefinitions call fzfe#fzf_definitions()
 else
     command! FZFDefinitions echo "ctags not found in path"
 endif
 
-command! FZFBuffers call s:FzfBuffers()
-command! -nargs=? -complete=dir FZFFiles call s:FzfFilesIngore(g:fzfe_ignore, <f-args>)
+command! FZFBuffers call fzfe#fzf_buffers()
+command! -nargs=? -complete=dir FZFFiles
+\   call fzfe#fzf_files_ignore(g:fzfe_ignore, <f-args>)
