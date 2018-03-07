@@ -315,23 +315,22 @@ endfunction
 
 
 function! fzfe#goto_line(line)
-    execute ":" . line
+    execute ":" . a:line
     normal! zz
 endfunction
 
 
 function! fzfe#open_buffer(buffer_id, method)
-    if method == "replace"
+    if a:method == "replace"
         execute "buffer " . a:buffer_id
-    elseif method == "split"
+    elseif a:method == "split"
         execute "sbuffer " . a:buffer_id
-    elseif method == "vsplit"
+    elseif a:method == "vsplit"
         execute "vert sbuffer " . a:buffer_id
     else
-        echoerr printf("Invalid method '%s'", method)
+        echoerr printf("Invalid method '%s'", a:method)
     endif
 endfunction
-
 
 function! fzfe#fzf_definitions()
     let fzf_opts = [
@@ -354,7 +353,7 @@ endfunction
 
 function! s:fzf_definitions_cb(selection)
     let [_, _, line] = split(a:selection, "\t")
-    fzfe#goto_line(line)
+    call fzfe#goto_line(line)
 endfunction
 
 
@@ -372,18 +371,37 @@ function! fzfe#fzf_buffers()
         call add(fzf_source, join([colored_number, buffer_name], "\t"))
     endfor
 
-    let fzf_opts = ["--tabstop=1", "--delimiter=\t", "--ansi"]
+    let fzf_opts = [
+    \   "--ansi",
+    \   "--delimiter=\t",
+    \   "--expect=ctrl-v,ctrl-s,ctrl-w",
+    \   "--multi",
+    \   "--tabstop=1",
+    \]
     let fzf_args = fzf#wrap({
     \   "source": fzf_source,
     \   "options": fzf_opts,
-    \   "sink": function("s:fzf_buffers_cb")
+    \   "sink*": function("s:fzf_buffers_cb")
     \})
     call fzf#run(fzf_args)
 endfunction
 
 function! s:fzf_buffers_cb(selection)
-    let [buffer_id, buffer_name] = split(a:selection, "\t")
-    fzfe#open_buffer(buffer_id, "replace")
+    let [key; buffer_list] = a:selection
+    let action = {
+    \   "": "replace",
+    \   "ctrl-s": "split",
+    \   "ctrl-v": "vsplit",
+    \   "ctrl-w": "wipe",
+    \}[key]
+    for line in buffer_list
+        let [buffer_id, buffer_name] = split(line, "\t")
+        if action == "wipe"
+            execute "bwipeout" . buffer_id
+        else
+            call fzfe#open_buffer(buffer_id, action)
+        endif
+    endfor
 endfunction
 
 
