@@ -56,7 +56,6 @@ function! s:AnsiColor(string, highlight_name)
     endif
 
     " TODO: Add 16 color and true color support
-    " TODO: Add bold and underline support
 
     let syn_id = synIDtrans(highlight_id)
     let fgcolor = synIDattr(syn_id, "fg")
@@ -100,11 +99,7 @@ endfunction
 
 
 function! s:ShellEscape(args)
-    let parts = []
-    for part in a:args
-        call add(parts, shellescape(part))
-    endfor
-    return join(parts, " ")
+    return join(map(a:args, {k, v -> shellescape(v)}), " ")
 endfunction
 
 
@@ -369,7 +364,7 @@ endfunction
 
 
 function! s:FzfFilesIngore(ignore_list, ...)
-    let path = get(a:000, 0, ".")
+    let path = simplify(fnamemodify(get(a:000, 0, "."), ":p"))
     let source_cmd = ["find", path, "-not", "("]
     for ignore in a:ignore_list
         if source_cmd[-1] != "("
@@ -386,7 +381,7 @@ function! s:FzfFilesIngore(ignore_list, ...)
     \)
     let fzf_args = fzf#wrap({
     \   "source": fzf_source,
-    \   "options": ["--multi"],
+    \   "options": ["--multi", "--prompt=" . fnamemodify(path, ":~")],
     \})
     call fzf#run(fzf_args)
 endfunction
