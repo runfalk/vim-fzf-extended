@@ -431,6 +431,19 @@ function! fzfe#fzf_files_ignore(ignore_list, ...)
 endfunction
 
 
+function! fzfe#fzf_git_files()
+    let path = system("git rev-parse --show-toplevel")[:-2]
+    let simplified_path = fnamemodify(simplify(path . "/"), ":~")
+
+    let fzf_args = fzf#wrap({
+    \   "source": "git ls-files",
+    \   "dir": path,
+    \   "options": ["--multi", "--prompt=" . simplified_path],
+    \})
+    call fzf#run(fzf_args)
+endfunction
+
+
 " We need Ctags to provide definition search
 if executable("ctags")
     command! FZFDefinitions call fzfe#fzf_definitions()
@@ -441,3 +454,4 @@ endif
 command! FZFBuffers call fzfe#fzf_buffers()
 command! -nargs=? -complete=dir FZFFiles
 \   call fzfe#fzf_files_ignore(g:fzfe_ignore, <f-args>)
+command! FZFGitFiles call fzfe#fzf_git_files()
