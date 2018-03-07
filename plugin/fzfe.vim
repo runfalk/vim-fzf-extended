@@ -276,7 +276,7 @@ function! fzfe#buffer_ctags()
     let temp_file = s:temp_save_buffer()
     let cmd = s:shell_escape([
     \   "ctags",
-    \   "--excmd=pattern",
+    \   "--excmd=number",
     \   "--fields=+aneS",
     \   "--language-force=" . ctag_language,
     \   "--sort=no",
@@ -285,7 +285,7 @@ function! fzfe#buffer_ctags()
     \])
 
     for ctag in systemlist(cmd)
-        let [name, _, regex, type; extra] = split(ctag, "\t")
+        let [name, _, _, type; extra] = split(ctag, "\t")
 
         let metadata = {}
         for ext in extra
@@ -294,7 +294,7 @@ function! fzfe#buffer_ctags()
             let metadata[key] = value
         endfor
 
-        let content = regex[2:-5]
+        let content = getline(metadata.line)
         call add(output, {
         \   "access": get(metadata, "access", ""),
         \   "content": content,
