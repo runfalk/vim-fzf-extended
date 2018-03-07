@@ -102,8 +102,7 @@ endfunction
 function! s:ShellEscape(args)
     let parts = []
     for part in a:args
-        let escaped_part = substitute(part, "'", "'\"'\"'", "g")
-        call add(parts, "'" . escaped_part . "'")
+        call add(parts, shellescape(part))
     endfor
     return join(parts, " ")
 endfunction
